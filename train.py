@@ -51,12 +51,11 @@ def train(args):
 		model.train(sentences)
 		model.alpha -= (0.025 - 0.0001) / 19
 		model.min_alpha = model.alpha
-		model.save(args.output_dir + "/doc2vec.model")
+		model.save(args.model_filename)
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-m", "--model-filename", type=str, default="out/doc2vec.model")
-	parser.add_argument("-o", "--output-dir", type=str, default="out")
 	parser.add_argument("-d", "--document-dir", type=str, default=None)
 	args = parser.parse_args()
 	train(args)

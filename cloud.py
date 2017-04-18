@@ -1,5 +1,5 @@
 # coding: utf-8
-import argparse, codecs, os, sys, re, pylab
+import argparse, codecs, os, sys, re, pylab, random
 from gensim import models
 from sets import Set
 from gensim.models.doc2vec import LabeledSentence
@@ -61,69 +61,24 @@ def color_func_4(word, font_size, position, orientation, random_state=None, **kw
     index = random.randint(0, len(colors) - 1)
     return colors[index]
 
+def cosin(v1, v2):
+    return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
 
 class stdout:
 	BOLD = "\033[1m"
 	END = "\033[0m"
 	CLEAR = "\033[2K"
 
-# フォントをセット
-# UbuntuならTakaoGothicなどが標準で入っている
-if sys.platform == "darwin":
-	fontfamily = "MS Gothic"
-else:
-	fontfamily = "TakaoGothic"
-sns.set(font=[fontfamily], font_scale=2)
-
-def plot_scatter_category(data_for_category, ndim, output_dir=None, filename="scatter", color="blue"):
-	markers = ["o", "v", "^", "<", ">"]
-	palette = sns.color_palette("Set2", len(data_for_category))
-	with sns.axes_style("white"):
-		for i in xrange(ndim - 1):
-			fig = pylab.gcf()
-			fig.set_size_inches(16.0, 16.0)
-			pylab.clf()
-			for category, data in enumerate(data_for_category):
-				pylab.scatter(data[:, i], data[:, i + 1], s=30, marker=markers[category % len(markers)], edgecolors="none", color=palette[category])
-			# pylab.xlim(-4, 4)
-			# pylab.ylim(-4, 4)
-			pylab.savefig("{}/{}_{}-{}.png".format(output_dir, filename, i, i + 1))
-
-def plot_words(words, ndim_vector, output_dir=None, filename="scatter"):
-	with sns.axes_style("white", {"font.family": [fontfamily]}):
-		for i in xrange(ndim_vector - 1):
-			fig = pylab.gcf()
-			fig.set_size_inches(45.0, 45.0)
-			pylab.clf()
-			for meta in words:
-				word, vector = meta
-				pylab.text(vector[i], vector[i + 1], word, fontsize=5)
-			# pylab.xlim(-4, 4)
-			# pylab.ylim(-4, 4)
-			pylab.savefig("{}/{}_{}-{}.png".format(output_dir, filename, i, i + 1))
-
-def plot_scatter_docs(vectors, output_dir=None, filename="scatter", color="blue"):
-	ndim = vectors.shape[1]
-	with sns.axes_style("white"):
-		for i in xrange(ndim - 1):
-			fig = pylab.gcf()
-			fig.set_size_inches(16.0, 16.0)
-			pylab.clf()
-			pylab.scatter(vectors[:, i], vectors[:, i + 1], s=30, edgecolors="none")
-			# pylab.xlim(-4, 4)
-			# pylab.ylim(-4, 4)
-			pylab.savefig("{}/{}_{}-{}.png".format(output_dir, filename, i, i + 1))
-
 def plot(args):
 	assert os.path.exists(args.model_filename)
 	model = models.Doc2Vec.load(args.model_filename)
 	filelist = os.listdir(args.document_dir)
 	filelist.sort()
-	vectors = []
+	doc_vectors = []
 	word_count = {}
 	for filename in filelist:
 		if re.search(r".txt$", filename):
-			vectors.append(model.docvecs[filename])
+			doc_vectors.append(model.docvecs[filename])
 			sys.stdout.write(stdout.CLEAR)
 			sys.stdout.write("\rLoading {}".format(filename))
 			path = "{}/{}".format(args.document_dir, filename)
@@ -145,15 +100,22 @@ def plot(args):
 		if count <= args.ignore_count:
 			continue
 		word_vector = model[word]
-		f = np.inner(word_vector, doc_vector)
+		f = cosin(word_vector, doc_vector)
 		inner[word] = f
-		
+
+	inner = sorted(inner.items(), key=lambda x: -x[1])
+	max_count = min(args.max_num_word, len(inner))
+	inner = dict(inner[:max_count])
+	# for word in inner:
+	# 	f = inner[word]
+	# 	print word.encode(sys.stdout.encoding), f
+
 	wordcloud = WordCloud(
 		background_color="white",
 		font_path=args.font_path, 
 		width=args.width, 
 		height=args.height, 
-		max_words=max_count, 
+		max_words=args.max_num_word, 
 		max_font_size=args.max_font_size).generate_from_frequencies(inner)
 	color_funcs = [None, color_func_1, color_func_2, color_func_3, color_func_4]
 	color_func = color_funcs[args.color]
@@ -172,6 +134,6 @@ if __name__ == "__main__":
 	parser.add_argument("-fsize", "--max-font-size", type=int, default=300, help="最大フォントサイズ.")
 	parser.add_argument("-max", "--max-num-word", type=int, default=500, help="fの値が高い順にいくつの単語をプロットするか.")
 	parser.add_argument("-font", "--font-path", type=str, default=None, help="フォントのパス.")
-	parser.add_argument("-min", "--min-occurence", type=int, default=20, help="これ以下の出現回数の単語はプロットしない.")
+	parser.add_argument("-ignore", "--ignore-count", type=int, default=20, help="これ以下の出現回数の単語はプロットしない.")
 	args = parser.parse_args()
 	plot(args)

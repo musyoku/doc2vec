@@ -63,11 +63,11 @@ def plot(args):
 	model = models.Doc2Vec.load(args.model_filename)
 	filelist = os.listdir(args.document_dir)
 	filelist.sort()
-	vectors = []
+	doc_vectors = []
 	word_count = {}
 	for filename in filelist:
 		if re.search(r".txt$", filename):
-			vectors.append(model.docvecs[filename])
+			doc_vectors.append(model.docvecs[filename])
 			sys.stdout.write(stdout.CLEAR)
 			sys.stdout.write("\rLoading {}".format(filename))
 			path = "{}/{}".format(args.document_dir, filename)
